@@ -118,7 +118,7 @@ class ChatApp {
         }
 
         renderWelcomeScreen() {
-            this.elements.chatContainer.innerHTML = `<div class="text-center text-slate-500 h-full flex flex-col justify-center items-center"><div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg"><span class="text-white text-4xl font-bold">🤖</span></div><h2 class="text-2xl font-bold text-slate-800 mb-2">Ben AI is ready to help</h2></div>`;
+            this.elements.chatContainer.innerHTML = `<div class="text-center text-slate-500 h-full flex flex-col justify-center items-center"><div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg"><span class="text-white text-4xl font-bold">🤖</span></div><h2 class="text-2xl font-bold text-slate-800 mb-2">CRACKIT AI is ready to help</h2></div>`;
         }
 
         addMessageToUI(message) {
