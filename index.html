@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrackIt AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- External Libraries -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="h-full bg-slate-50 flex antialiased">
+
+    <!-- Sidebar -->
+    <aside class="w-72 bg-white border-r border-slate-200 flex flex-col p-4">
+        <div class="px-2 pb-4 border-b border-slate-200">
+            <h1 class="text-xl font-bold text-slate-900">CRACK IT AI</h1>
+            <p class="text-sm text-slate-500">Your Personal Assistant</p>
+        </div>
+        <div class="py-4 space-y-2">
+            <button id="new-chat-btn" class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                New Chat
+            </button>
+            <button id="export-chat-btn" class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export Chat
+            </button>
+        </div>
+        <div id="history-container" class="flex-grow overflow-y-auto history-container -mr-2 pr-2"></div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col bg-slate-100 shadow-inner-lg">
+        <div id="chat-container" class="flex-1 p-6 overflow-y-auto chat-container"></div>
+        <div class="p-4 bg-white/80 backdrop-blur-sm border-t border-slate-200">
+            <div class="max-w-4xl mx-auto">
+                <div class="relative flex items-center">
+                    <button id="file-btn" class="p-2 text-slate-500 hover:text-blue-600 transition-colors rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                    </button>
+                    <input type="file" id="file-input" accept="image/*" hidden />
+                    <button id="mic-btn" class="p-2 text-slate-500 hover:text-blue-600 transition-colors rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    </button>
+                    <input type="text" id="chat-input" placeholder="Ask CrackIt AI anything..." class="flex-1 w-full pl-4 pr-12 py-3 bg-slate-100 border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow" autocomplete="off" />
+                    <button id="send-btn" class="absolute inset-y-0 right-0 flex items-center justify-center w-12 h-full text-slate-400 hover:text-blue-600 transition-colors disabled:text-slate-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
