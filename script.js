@@ -1,8 +1,73 @@
-class ChatApp {
+class ParticleNetwork {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.particles = [];
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+        }
+
+        resize() {
+            this.canvas.width = this.canvas.offsetWidth;
+            this.canvas.height = this.canvas.offsetHeight;
+            this.createParticles();
+        }
+
+        createParticles() {
+            this.particles = [];
+            const particleCount = Math.floor(this.canvas.width * this.canvas.height / 15000);
+            for (let i = 0; i < particleCount; i++) {
+                this.particles.push({
+                    x: Math.random() * this.canvas.width,
+                    y: Math.random() * this.canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    size: Math.random() * 2 + 1
+                });
+            }
+        }
+
+        animate() {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 0 || p.x > this.canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > this.canvas.height) p.vy *= -1;
+
+                this.ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
+                this.ctx.beginPath();
+                this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                this.ctx.fill();
+            });
+
+            this.drawLines();
+            requestAnimationFrame(() => this.animate());
+        }
+
+        drawLines() {
+            for (let i = 0; i < this.particles.length; i++) {
+                for (let j = i + 1; j < this.particles.length; j++) {
+                    const p1 = this.particles[i];
+                    const p2 = this.particles[j];
+                    const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                    if (dist < 120) {
+                        this.ctx.strokeStyle = `rgba(59, 130, 246, ${1 - dist / 120})`;
+                        this.ctx.lineWidth = 0.5;
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(p1.x, p1.y);
+                        this.ctx.lineTo(p2.x, p2.y);
+                        this.ctx.stroke();
+                    }
+                }
+            }
+        }
+    }
+
+    class ChatApp {
         constructor() {
             this.elements = {
-                body: document.body,
-                chatContainer: document.getElementById('chat-container'),
+                chatCanvas: document.getElementById('chat-canvas'),
                 chatInput: document.getElementById('chat-input'),
                 sendBtn: document.getElementById('send-btn'),
                 newChatBtn: document.getElementById('new-chat-btn'),
@@ -11,6 +76,11 @@ class ChatApp {
                 fileInput: document.getElementById('file-input'),
                 micBtn: document.getElementById('mic-btn'),
                 exportChatBtn: document.getElementById('export-chat-btn'),
+                sidebar: document.getElementById('sidebar'),
+                openSidebarBtn: document.getElementById('open-sidebar-btn'),
+                closeSidebarBtn: document.getElementById('close-sidebar-btn'),
+                orb: document.getElementById('orb'),
+                backgroundCanvas: document.getElementById('background-canvas'),
             };
             this.state = {
                 currentSessionId: null,
@@ -23,14 +93,26 @@ class ChatApp {
             this.init();
         }
 
-        loadSessions() { return JSON.parse(localStorage.getItem('ben_ai_history_v10')) || {}; }
-        saveSessions() { localStorage.setItem('ben_ai_history_v10', JSON.stringify(this.state.sessions)); }
+        loadSessions() {
+            const key = 'crackit_ai_sessions_v2'; // Using a new key to avoid conflicts
+            try {
+                const sessions = localStorage.getItem(key);
+                return sessions ? JSON.parse(sessions) : {};
+            } catch (e) {
+                console.error("Failed to parse chat history from localStorage:", e);
+                localStorage.removeItem(key);
+                return {};
+            }
+        }
+        saveSessions() {
+            const key = 'crackit_ai_sessions_v2';
+            localStorage.setItem(key, JSON.stringify(this.state.sessions));
+        }
 
         init() {
             this.initSpeechRecognition();
             this.addEventListeners();
             this.initSocketListeners();
-
             const sessionKeys = Object.keys(this.state.sessions);
             if (sessionKeys.length > 0) {
                 this.state.currentSessionId = sessionKeys.sort((a, b) => b.split('_')[1] - a.split('_')[1])[0];
@@ -38,8 +120,10 @@ class ChatApp {
                 this.handleNewChat(false);
             }
             this.render();
+            const particleNetwork = new ParticleNetwork(this.elements.backgroundCanvas);
+            particleNetwork.animate();
         }
-
+        
         addEventListeners() {
             this.elements.sendBtn.addEventListener('click', () => this.handleSendMessage());
             this.elements.chatInput.addEventListener('keypress', (e) => e.key === 'Enter' && this.handleSendMessage());
@@ -48,11 +132,25 @@ class ChatApp {
             this.elements.fileBtn.addEventListener('click', () => this.elements.fileInput.click());
             this.elements.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
             this.elements.micBtn.addEventListener('click', () => this.toggleVoice());
+            this.elements.openSidebarBtn.addEventListener('click', () => this.elements.sidebar.classList.remove('-translate-x-full'));
+            this.elements.closeSidebarBtn.addEventListener('click', () => this.elements.sidebar.classList.add('-translate-x-full'));
             this.elements.historyContainer.addEventListener('click', (e) => {
                 const historyButton = e.target.closest('.history-item');
                 const deleteButton = e.target.closest('.delete-btn');
-                if (deleteButton) { e.stopPropagation(); this.deleteSession(deleteButton.dataset.sessionId); } 
-                else if (historyButton) { this.switchSession(historyButton.dataset.sessionId); }
+                if (deleteButton) { 
+                    e.stopPropagation(); 
+                    this.deleteSession(deleteButton.dataset.sessionId); 
+                } 
+                else if (historyButton) { 
+                    this.switchSession(historyButton.dataset.sessionId); 
+                }
+            });
+            this.elements.chatCanvas.addEventListener('click', (e) => {
+                if (e.target.classList.contains('chat-bubble') || e.target.closest('.chat-bubble')) {
+                    this.focusBubble(e.target.closest('.chat-bubble'));
+                } else {
+                    this.unfocusAllBubbles();
+                }
             });
         }
         
@@ -79,9 +177,7 @@ class ChatApp {
 
             this.socket.on("error", (data) => {
                 const streamingMessage = document.querySelector('.streaming-message');
-                if (streamingMessage) {
-                    streamingMessage.remove();
-                }
+                if (streamingMessage) streamingMessage.remove();
                 this.addMessageToUI({ role: 'assistant', content: `**Error:** ${data.message}` });
                 this.setLoadingState(false);
             });
@@ -93,75 +189,113 @@ class ChatApp {
             this.elements.historyContainer.innerHTML = '';
             const sessions = this.state.sessions;
             const sortedKeys = Object.keys(sessions).sort((a, b) => b.split('_')[1] - a.split('_')[1]);
-            
             if (sortedKeys.length > 0) {
-                this.elements.historyContainer.innerHTML = '<h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-2 mb-2">History</h2>';
+                this.elements.historyContainer.innerHTML = '<h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mb-2">History</h2>';
             }
-
             sortedKeys.forEach(id => {
                 const session = sessions[id];
                 const isActive = this.state.currentSessionId === id;
                 const item = document.createElement('div');
-                item.className = `history-item group flex items-center justify-between w-full text-left px-3 py-2 text-sm rounded-lg mb-1 cursor-pointer transition-colors ${isActive ? 'bg-blue-600 text-white font-semibold' : 'text-slate-700 hover:bg-slate-100'}`;
+                item.className = `history-item group flex items-center justify-between w-full text-left px-3 py-2 text-sm rounded-lg mb-1 cursor-pointer transition-colors ${isActive ? 'bg-blue-600 text-white font-semibold shadow-md' : 'text-slate-300 hover:bg-slate-800'}`;
                 item.dataset.sessionId = id;
-                item.innerHTML = `<span class="truncate">${session.title}</span><button data-session-id="${id}" class="delete-btn p-1 rounded ${isActive ? 'hover:bg-blue-700' : 'hover:bg-slate-200'} opacity-0 group-hover:opacity-100 transition-opacity"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>`;
+                item.innerHTML = `<span class="truncate">${session.title}</span><button data-session-id="${id}" class="delete-btn p-1 rounded ${isActive ? 'hover:bg-blue-700' : 'hover:bg-slate-700'} opacity-0 group-hover:opacity-100 transition-opacity"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>`;
                 this.elements.historyContainer.appendChild(item);
             });
         }
 
         renderMessages() {
-            this.elements.chatContainer.innerHTML = '';
+            Array.from(this.elements.chatCanvas.children).forEach(child => {
+                if (child.id !== 'orb' && child.id !== 'background-canvas') child.remove();
+            });
             const session = this.state.sessions[this.state.currentSessionId];
-            if (!session || session.messages.length === 0) { this.renderWelcomeScreen(); return; }
+            if (!session || session.messages.length === 0) { 
+                this.elements.orb.classList.remove('loading');
+                return; 
+            }
             session.messages.forEach(msg => this.addMessageToUI(msg));
-            this.scrollToBottom();
-        }
-
-        renderWelcomeScreen() {
-            this.elements.chatContainer.innerHTML = `<div class="text-center text-slate-500 h-full flex flex-col justify-center items-center"><div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg"><span class="text-white text-4xl font-bold">🤖</span></div><h2 class="text-2xl font-bold text-slate-800 mb-2">CrackIT AI is ready to help</h2></div>`;
         }
 
         addMessageToUI(message) {
             const { role, content } = message;
             const isUser = role === 'user';
             const msgDiv = document.createElement('div');
-            msgDiv.className = `flex gap-3 my-4 max-w-2xl message-bubble ${isUser ? 'ml-auto flex-row-reverse' : 'mr-auto'}`;
+            msgDiv.className = `chat-bubble absolute w-64 p-4 rounded-2xl shadow-2xl transition-all duration-500 bg-slate-800/50 backdrop-blur-md border border-slate-700/80 z-20`;
             
-            const avatar = `<div class="w-9 h-9 rounded-full ${isUser ? 'bg-slate-300' : 'bg-blue-600'} flex items-center justify-center text-white font-bold flex-shrink-0 text-xs shadow-md">${isUser ? 'You' : 'AI'}</div>`;
+            const avatar = `<div class="w-8 h-8 rounded-full ${isUser ? 'bg-slate-500' : 'bg-gradient-to-br from-blue-500 to-indigo-600'} flex items-center justify-center text-white font-bold flex-shrink-0 text-xs shadow-md">${isUser ? 'You' : 'AI'}</div>`;
+            const messageContent = `<div class="bubble-content max-h-32 overflow-y-auto mt-2 text-sm text-slate-200 prose prose-sm prose-invert max-w-none">${marked.parse(content || "")}</div>`;
             
-            const messageContent = marked.parse(content || "");
-
-            msgDiv.innerHTML = `${avatar}<div class="p-4 rounded-lg shadow-sm ${isUser ? 'bg-blue-600 text-white' : 'bg-white text-slate-800'}"><div class="prose prose-sm max-w-none text-inherit">${messageContent}</div></div>`;
+            msgDiv.innerHTML = `<div class="flex items-center gap-3">${avatar}<h3 class="font-semibold">${isUser ? 'Your Question' : 'AI Response'}</h3></div>${messageContent}`;
             
-            this.elements.chatContainer.appendChild(msgDiv);
-            this.scrollToBottom();
+            this.positionBubble(msgDiv, role);
+            this.elements.chatCanvas.appendChild(msgDiv);
         }
         
+        positionBubble(element, role) {
+            const canvas = this.elements.chatCanvas;
+            const rect = canvas.getBoundingClientRect();
+            const isUser = role === 'user';
+            
+            const userBubbles = document.querySelectorAll('.user-bubble').length;
+            const aiBubbles = document.querySelectorAll('.ai-bubble').length;
+            const index = isUser ? userBubbles : aiBubbles;
+
+            const xOffset = isUser ? rect.width * 0.75 : rect.width * 0.25;
+            const yOffset = (index * 120) % (rect.height - 200) + 100;
+
+            element.classList.add(isUser ? 'user-bubble' : 'ai-bubble');
+            element.style.left = `${xOffset - 128}px`;
+            element.style.top = `${yOffset}px`;
+            element.style.transform = `scale(0)`;
+            setTimeout(() => {
+                element.style.transform = `scale(1)`;
+            }, 100);
+        }
+
+        focusBubble(bubble) {
+            this.unfocusAllBubbles();
+            bubble.classList.add('focused');
+            bubble.querySelector('.bubble-content').classList.remove('max-h-32');
+            bubble.querySelector('.bubble-content').classList.add('max-h-[60vh]');
+        }
+
+        unfocusAllBubbles() {
+            document.querySelectorAll('.chat-bubble.focused').forEach(b => {
+                b.classList.remove('focused');
+                b.querySelector('.bubble-content').classList.add('max-h-32');
+                b.querySelector('.bubble-content').classList.remove('max-h-[60vh]');
+            });
+        }
+
         updateLastBotMessage(text) {
             let lastBotMsgEl = document.querySelector('.streaming-message');
             if (!lastBotMsgEl) {
                 const msgDiv = document.createElement('div');
-                msgDiv.className = `flex gap-3 my-4 max-w-2xl message-bubble mr-auto streaming-message`;
-                msgDiv.innerHTML = `<div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0 text-xs shadow-md">AI</div><div class="p-4 rounded-lg shadow-sm bg-white text-slate-800"><div class="prose prose-sm max-w-none text-inherit"><div class="typing-indicator"><span></span><span></span><span></span></div></div></div>`;
-                this.elements.chatContainer.appendChild(msgDiv);
+                msgDiv.className = `chat-bubble absolute w-64 p-4 rounded-2xl shadow-2xl transition-all duration-500 bg-slate-800/50 backdrop-blur-md border border-slate-700/80 streaming-message z-20`;
+                const avatar = `<div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0 text-xs shadow-md">AI</div>`;
+                msgDiv.innerHTML = `<div class="flex items-center gap-3">${avatar}<h3 class="font-semibold">AI Response</h3></div><div class="bubble-content max-h-32 overflow-y-auto mt-2 text-sm text-slate-200 prose prose-sm prose-invert max-w-none"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+                this.positionBubble(msgDiv, 'assistant');
+                this.elements.chatCanvas.appendChild(msgDiv);
                 lastBotMsgEl = msgDiv;
             }
             lastBotMsgEl.querySelector('.prose').innerHTML = marked.parse(text + '▌');
-            this.scrollToBottom();
         }
 
-        scrollToBottom() { this.elements.chatContainer.scrollTop = this.elements.chatContainer.scrollHeight; }
-        setLoadingState(isLoading) { this.state.isLoading = isLoading; this.elements.chatInput.disabled = isLoading; this.elements.sendBtn.disabled = isLoading; }
+        setLoadingState(isLoading) {
+            this.state.isLoading = isLoading;
+            this.elements.chatInput.disabled = isLoading;
+            this.elements.sendBtn.disabled = isLoading;
+            if (isLoading) {
+                this.elements.orb.classList.add('loading');
+            } else {
+                this.elements.orb.classList.remove('loading');
+            }
+        }
 
         sendToBot(text) {
             this.state.currentBotMessage = "";
             this.setLoadingState(true);
             const session = this.state.sessions[this.state.currentSessionId];
-            
-            // --- CRITICAL FIX ---
-            // Create a clean copy of the history *before* the placeholder is added.
             const historyToSend = session.messages.slice(0, -1);
-            
             this.socket.emit("chat", { message: text, user_id: "default", memory: historyToSend });
         }
 
@@ -177,11 +311,10 @@ class ChatApp {
             this.saveSessions();
             this.addMessageToUI(userMessage);
             
+            session.messages.push({ role: 'assistant', content: '' });
+
             this.elements.chatInput.value = '';
             this.sendToBot(prompt);
-            
-            // Add a placeholder for the AI's response after sending the message
-            session.messages.push({ role: 'assistant', content: '' });
         }
 
         handleNewChat(render = true) {
